@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Build a lightweight Ubuntu 26.04 LXC-based subnet router for Proxmox.
+Build a lightweight Ubuntu/Debian LXC-based subnet router for Proxmox.
 
 This system is **not a firewall**, **not a NAT gateway**, and **not a security appliance**. It should behave like a Layer 3 switch/router: traffic enters on one subnet/VLAN interface and is forwarded out the correct subnet/VLAN interface based on the Linux routing table.
 
@@ -33,12 +33,14 @@ This should feel closer to a **Layer 3 switch SVI setup** than a firewall/router
 | Component | Requirement |
 |---|---|
 | Host | Proxmox VE |
-| Guest | Ubuntu 26.04 LXC |
+| Guest | Ubuntu 24.04 LXC by default; Ubuntu 26.04 and latest Debian supported |
 | LXC Type | Prefer privileged LXC |
 | Networking | Multiple Proxmox bridges or VLAN-backed interfaces |
 | Routing | Linux kernel routing |
 | Config | Netplan + sysctl |
 | GUI | Lightweight local web interface |
+| Listen Address | `0.0.0.0` by default |
+| Auth | Local users and groups |
 | Firewall | None by default |
 | NAT | None by default |
 
@@ -326,7 +328,7 @@ Because the LXC is headless, the system needs a simple web GUI.
 | UI | HTMX + Bootstrap or Tailwind |
 | Config | YAML |
 | Service | systemd |
-| Auth | Local admin password |
+| Auth | Local users and groups |
 | HTTPS | Self-signed cert or optional Caddy |
 
 Avoid a heavy frontend framework for MVP.
@@ -425,6 +427,30 @@ Actions:
 
 ---
 
+### 6. Users / Groups
+
+Show local management users and group assignments.
+
+Group levels:
+
+| Group | Purpose |
+|---|---|
+| `admin` | Full access, including users, interfaces, routes, apply, and rollback |
+| `operator` | Operational access to interfaces, routes, apply, and rollback |
+| `viewer` | Read-only access to status, interfaces, routes, and generated config |
+
+Actions:
+
+- Add user
+- Disable user
+- Reset password
+- Assign group
+- Rotate session secret from CLI recovery tool
+
+The MVP should support one or more local users. External identity providers, LDAP, OIDC, SAML, and multi-tenant RBAC are out of scope.
+
+---
+
 ## Configuration File
 
 Primary app config:
@@ -441,6 +467,44 @@ router:
   ipv6_forwarding: false
   firewall_managed: false
   nat_managed: false
+  listen_host: 0.0.0.0
+  listen_port: 8443
+
+auth:
+  enabled: true
+  session_timeout_minutes: 60
+  password_hash_algorithm: argon2id
+
+groups:
+  admin:
+    permissions:
+      - view_status
+      - view_config
+      - manage_interfaces
+      - manage_routes
+      - apply_config
+      - rollback_config
+      - manage_users
+  operator:
+    permissions:
+      - view_status
+      - view_config
+      - manage_interfaces
+      - manage_routes
+      - apply_config
+      - rollback_config
+  viewer:
+    permissions:
+      - view_status
+      - view_config
+      - view_interfaces
+      - view_routes
+
+users:
+  admin:
+    enabled: true
+    group: admin
+    password_hash: "$argon2id$..."
 
 interfaces:
   mgmt0:
@@ -581,7 +645,7 @@ install.sh
 The installer should:
 
 ```text
-1. Confirm Ubuntu 26.04
+1. Confirm supported OS: Ubuntu 24.04 by default, Ubuntu 26.04, or latest Debian
 2. Confirm root execution
 3. Install required packages
 4. Create /opt/lxc-subnet-router
@@ -591,9 +655,10 @@ The installer should:
 8. Enable IPv4 forwarding
 9. Create Python virtual environment
 10. Install FastAPI app dependencies
-11. Install systemd service
-12. Start GUI service
-13. Print management URL
+11. Create initial admin user
+12. Install systemd service
+13. Start GUI service
+14. Print management URL
 ```
 
 Required packages:
@@ -651,6 +716,8 @@ WantedBy=multi-user.target
 
 The service may run as root in MVP because it needs to write Netplan and apply network changes.
 
+The service intentionally binds to `0.0.0.0` by default. Management exposure is controlled by placement of the management interface, Proxmox network design, and login/session security rather than by firewall rules created by this application.
+
 A later version can split GUI and privileged helper service.
 
 ---
@@ -664,10 +731,19 @@ Security focus is only for the management interface.
 Management GUI should include:
 
 - Login page
-- Local admin password
-- Password hash storage
+- Local users
+- Local groups
+- Password hash storage using Argon2id or bcrypt
 - Session cookie
 - HTTPS option
+
+Built-in group levels:
+
+| Group | Access |
+|---|---|
+| `admin` | Full management, including users and groups |
+| `operator` | Interface and route operations, apply, rollback |
+| `viewer` | Read-only status and configuration views |
 
 Network forwarding should remain unrestricted.
 
@@ -688,16 +764,16 @@ nesting=1
 keyctl=1
 ```
 
-Example Proxmox network layout:
+Recommended Proxmox network layout:
 
 ```text
-net0: name=mgmt0,bridge=vmbr0,ip=10.11.200.68/24,gw=10.11.200.1
+net0: name=mgmt0,bridge=vmbr0,ip=manual
 net1: name=vlan10,bridge=vmbr10,ip=manual
 net2: name=vlan20,bridge=vmbr20,ip=manual
 net3: name=vlan30,bridge=vmbr30,ip=manual
 ```
 
-Inside the LXC, the application owns IP addressing for the routed interfaces.
+Inside the LXC, the application owns IP addressing for the management interface and routed interfaces. Proxmox should attach interfaces and bridges, while Netplan generated by the application should assign addresses, gateways, DNS, and static routes.
 
 ---
 
@@ -757,7 +833,8 @@ Do not build these into MVP:
 - DNS server
 - IDS/IPS
 - Captive portal
-- Multi-user RBAC
+- External identity providers
+- Advanced custom RBAC
 - Cloud sync
 
 Possible future features:
@@ -775,18 +852,20 @@ Possible future features:
 
 The project is complete when:
 
-1. Ubuntu 26.04 LXC boots normally
-2. GUI is reachable from management interface
-3. Interfaces are detected correctly
-4. Static IPs can be assigned to routed interfaces
-5. IPv4 forwarding is enabled persistently
-6. Directly connected subnets route through the LXC
-7. No NAT is configured
-8. No firewall rules are configured by the app
-9. Netplan config survives reboot
-10. CLI recovery tool works
-11. Bad network config can be rolled back
-12. README explains Proxmox LXC setup clearly
+1. Ubuntu 24.04 LXC boots normally as the default target
+2. Ubuntu 26.04 and latest Debian are supported by installer checks and package selection
+3. GUI is reachable on the configured listen address and port
+4. Local users can authenticate with `admin`, `operator`, and `viewer` permissions
+5. Interfaces are detected correctly
+6. Static IPs can be assigned to management and routed interfaces
+7. IPv4 forwarding is enabled persistently
+8. Directly connected subnets route through the LXC
+9. No NAT is configured
+10. No firewall rules are configured by the app
+11. Netplan config survives reboot
+12. CLI recovery tool works
+13. Bad network config can be rolled back
+14. README explains Proxmox LXC setup clearly
 
 ---
 
@@ -795,17 +874,19 @@ The project is complete when:
 Use this prompt to start the build:
 
 ```text
-Build a production-ready Ubuntu 26.04 Proxmox LXC subnet router manager.
+Build a production-ready Proxmox LXC subnet router manager for Ubuntu 24.04 by default, with Ubuntu 26.04 and latest Debian support.
 
 This is not a firewall and not a NAT gateway. It should behave like a Layer 3 switch/router that forwards traffic between connected Proxmox bridges, VLANs, and subnets. The default behavior must be unrestricted routing between directly connected subnets using Linux kernel IP forwarding.
 
 Use Python FastAPI, Jinja2 templates, HTMX, and Bootstrap or Tailwind for a lightweight web GUI. Store configuration in YAML under /opt/lxc-subnet-router/config/router.yaml. Generate Netplan configuration from this YAML and apply it safely with validation, backup, and rollback.
 
 Requirements:
-- Ubuntu 26.04 LXC target
+- Ubuntu 24.04 LXC default target
+- Ubuntu 26.04 and latest Debian support
 - Proxmox LXC compatibility
 - Interface discovery
 - Management and routed interface roles
+- Application-owned Netplan addressing for management and routed interfaces
 - IPv4 forwarding enabled persistently
 - IPv6 forwarding disabled by default
 - Static route management
@@ -813,6 +894,8 @@ Requirements:
 - Safe apply and rollback
 - CLI recovery command named lxc-subnet-router
 - Dashboard showing forwarding, interfaces, and route table
+- Local users and groups with admin, operator, and viewer levels
+- GUI binds to 0.0.0.0 by default
 - No firewall rules by default
 - No NAT by default
 - Do not install or configure UFW
@@ -824,6 +907,18 @@ Traffic should route freely between all directly connected subnets as long as ho
 
 Prioritize reliability, simple recovery, and clear generated configuration over visual complexity.
 ```
+
+---
+
+## Reference Repository
+
+The CCC repository can be used as implementation inspiration and code reference:
+
+```text
+https://github.com/oculus-pllx/CCC
+```
+
+Do not import CCC code by default. Pull specific code or components only after reviewing fit, license, dependencies, and whether the behavior matches the subnet-router requirements.
 
 ---
 
@@ -848,4 +943,3 @@ Best practical name for the repo:
 ```text
 lxc-subnet-router
 ```
-
