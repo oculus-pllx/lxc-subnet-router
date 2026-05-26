@@ -44,7 +44,7 @@ AVAILABLE_NETWORKS=()
 
 info() { echo -e "${CYAN}[INFO]${NC} $*"; }
 success() { echo -e "${GREEN}[OK]${NC} $*"; }
-warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
 error() { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
 
 header() {
@@ -76,7 +76,7 @@ read_required_secret() {
   local value=""
   while [[ -z "$value" ]]; do
     read -rsp "$prompt" value
-    echo ""
+    echo "" >&2
     [[ -n "$value" ]] || warn "Value cannot be empty."
   done
   printf '%s\n' "$value"

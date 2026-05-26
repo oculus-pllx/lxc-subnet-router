@@ -88,6 +88,13 @@ def test_bootstrap_reprompts_bad_questionnaire_entries_and_normalizes_modes():
     assert "continue" in text
 
 
+def test_bootstrap_secret_and_warning_output_do_not_pollute_captured_answers():
+    text = script_text()
+
+    assert 'echo "" >&2' in text
+    assert 'warn() { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }' in text
+
+
 def test_bootstrap_and_installer_disable_ipv6_completely():
     bootstrap = script_text()
     installer = (ROOT / "install.sh").read_text(encoding="utf-8")
