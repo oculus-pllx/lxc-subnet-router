@@ -40,6 +40,7 @@ ROUTED_NAMES=()
 ROUTED_BRIDGES=()
 ROUTED_MODES=()
 ROUTED_ADDRESSES=()
+AVAILABLE_NETWORKS=()
 
 info() { echo -e "${CYAN}[INFO]${NC} $*"; }
 success() { echo -e "${GREEN}[OK]${NC} $*"; }
@@ -128,10 +129,52 @@ detect_storage() {
   fi
 }
 
+discover_networks() {
+  local node_name bridges vnets combined
+  node_name=$(hostname)
+  bridges=$(pvesh get /nodes/"$node_name"/network --output-format json 2>/dev/null \
+    | grep -o '"iface":"[^"]*"' \
+    | cut -d'"' -f4 \
+    | grep -E '^(vmbr|br)[a-zA-Z0-9_.:-]*$' || true)
+  vnets=$(pvesh get /cluster/sdn/vnets --output-format json 2>/dev/null \
+    | grep -Eo '"(vnet|vnetid)":"[^"]*"' \
+    | cut -d'"' -f4 || true)
+  combined=$(printf '%s\n%s\n' "$bridges" "$vnets" | sed '/^$/d' | sort -u)
+  if [[ -z "$combined" ]]; then
+    combined="vmbr0"
+  fi
+  mapfile -t AVAILABLE_NETWORKS <<<"$combined"
+}
+
+select_network() {
+  local prompt=$1
+  local default_value=$2
+  local choice selected
+
+  echo "Available Proxmox bridges and SDN VNets:" >&2
+  local index=1
+  for network in "${AVAILABLE_NETWORKS[@]}"; do
+    echo "  ${index}) ${network}" >&2
+    index=$((index + 1))
+  done
+  echo "Enter a number or network name. Manual entries are allowed." >&2
+
+  read -rp "$prompt [$default_value]: " choice
+  choice="${choice:-$default_value}"
+  if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#AVAILABLE_NETWORKS[@]} )); then
+    selected="${AVAILABLE_NETWORKS[$((choice - 1))]}"
+  else
+    selected="$choice"
+  fi
+  valid_name "$selected" || error "Invalid Proxmox bridge or SDN VNet name: $selected"
+  printf '%s\n' "$selected"
+}
+
 get_config() {
   local next_id default_storage
   next_id=$(pvesh get /cluster/nextid 2>/dev/null || echo "100")
   default_storage=$(detect_storage)
+  discover_networks
 
   choose_os
 
@@ -166,9 +209,7 @@ get_config() {
 
   echo ""
   echo -e "${BOLD}Management Interface${NC}"
-  read -rp "Management bridge [vmbr0]: " MGMT_BRIDGE
-  MGMT_BRIDGE="${MGMT_BRIDGE:-vmbr0}"
-  valid_name "$MGMT_BRIDGE" || error "Invalid management bridge."
+  MGMT_BRIDGE=$(select_network "Management bridge or SDN VNet" "vmbr0")
   read -rp "Management IP/CIDR [dhcp/manual]: " MGMT_ADDRESS
   MGMT_ADDRESS="${MGMT_ADDRESS:-}"
   if [[ -n "$MGMT_ADDRESS" && "$MGMT_ADDRESS" != "dhcp" && "$MGMT_ADDRESS" != "manual" ]]; then
@@ -196,9 +237,7 @@ get_config() {
     iface_name="${iface_name:-$default_name}"
     valid_iface "$iface_name" || error "Invalid interface name $iface_name."
     [[ "$iface_name" != "mgmt0" ]] || error "Additional routed interface cannot be mgmt0."
-    read -rp "Bridge [$default_bridge]: " bridge
-    bridge="${bridge:-$default_bridge}"
-    valid_name "$bridge" || error "Invalid bridge $bridge."
+    bridge=$(select_network "Bridge or SDN VNet" "$default_bridge")
     read -rp "DHCP/manual or static? [static]: " mode
     mode="${mode:-static}"
     case "$mode" in

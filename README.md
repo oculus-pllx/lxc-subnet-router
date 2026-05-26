@@ -42,11 +42,13 @@ The bootstrapper creates the LXC, attaches `mgmt0` and any additional routed int
 | Hostname | `lxc-subnet-router` | |
 | Root password | none | Used for the LXC root account |
 | Router admin username/password | `admin` | Used for the web UI |
-| Management bridge | `vmbr0` | Attached as `mgmt0` |
+| Management bridge or SDN VNet | `vmbr0` | Shows detected Proxmox Linux bridges and SDN VNets, but allows manual entry |
 | Management IP | manual | Use static CIDR for a fully automated install, or `dhcp` for temporary DHCP bootstrap networking |
-| Additional routed interfaces | `2` | Each gets a friendly interface name, Proxmox bridge, and optional static subnet gateway CIDR |
+| Additional routed interfaces | `2` | Each gets a friendly interface name, Proxmox bridge or SDN VNet, and optional static subnet gateway CIDR |
 
 Proxmox attaches interfaces with `ip=manual`. The app owns the persistent in-container Netplan config. During bootstrap only, the script brings up temporary management networking so packages can install.
+
+For each bridge/network prompt, choose one of the detected numbered options or type a bridge/VNet name manually. This supports standard Linux bridges such as `vmbr0` and Proxmox SDN VNets exposed through `pvesh get /cluster/sdn/vnets`.
 
 ### Existing LXC Install
 

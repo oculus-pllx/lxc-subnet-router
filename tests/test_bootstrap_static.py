@@ -46,6 +46,17 @@ def test_bootstrap_questionnaire_supports_variable_named_routed_interfaces():
     assert "DHCP/manual" in text
 
 
+def test_bootstrap_discovers_proxmox_bridges_and_sdn_vnets_for_selection():
+    text = script_text()
+
+    assert "discover_networks" in text
+    assert 'pvesh get /nodes/"$node_name"/network' in text
+    assert "pvesh get /cluster/sdn/vnets" in text
+    assert "Available Proxmox bridges and SDN VNets" in text
+    assert "select_network" in text
+    assert "Enter a number or network name" in text
+
+
 def test_bootstrap_seeds_app_credentials_and_cli_config_inside_container():
     text = script_text()
 
