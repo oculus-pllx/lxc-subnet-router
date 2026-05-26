@@ -53,6 +53,14 @@ For each bridge/network prompt, choose one of the detected numbered options or t
 
 Questionnaire entries re-prompt on validation errors instead of exiting. Mode answers such as `DHCP`, `dhcp`, `Manual`, and `static` are accepted case-insensitively.
 
+If a container was created before a fix landed, update the app inside the container before using newer CLI commands:
+
+```bash
+pct exec <CT_ID> -- bash -lc 'cd /opt/lxc-subnet-router-src && git pull && ./install.sh'
+```
+
+DHCP interface config is persisted as Netplan `dhcp4: true`. IPv6 is disabled through generated Netplan (`dhcp6: false`, `accept-ra: false`, `link-local: []`) and sysctl (`disable_ipv6=1` for all/default/lo).
+
 ### Existing LXC Install
 
 Inside the LXC:

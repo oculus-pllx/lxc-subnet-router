@@ -440,20 +440,30 @@ configure_app() {
 
   if [[ -n "$MGMT_ADDRESS" && "$MGMT_ADDRESS" != "dhcp" && "$MGMT_ADDRESS" != "manual" ]]; then
     pct exec "$CT_ID" -- bash -lc "$cli set-interface mgmt0 --role management --address '$MGMT_ADDRESS' --gateway '$MGMT_GATEWAY' --dns '$MGMT_DNS' --enabled"
+  elif [[ "$MGMT_ADDRESS" == "dhcp" ]]; then
+    pct exec "$CT_ID" -- bash -lc "$cli set-interface mgmt0 --role management --dhcp --dns '$MGMT_DNS' --enabled"
   else
-    pct exec "$CT_ID" -- bash -lc "$cli set-interface mgmt0 --role management --enabled"
+    pct exec "$CT_ID" -- bash -lc "$cli set-interface mgmt0 --role management --manual --enabled"
   fi
 
   for ((i = 0; i < ROUTED_COUNT; i++)); do
     local iface_name="${ROUTED_NAMES[$i]}"
+    local iface_mode="${ROUTED_MODES[$i]}"
     local iface_address="${ROUTED_ADDRESSES[$i]}"
     if [[ -n "$iface_address" ]]; then
       pct exec "$CT_ID" -- bash -lc "$cli set-interface \"${iface_name}\" --role routed --address '$iface_address' --enabled"
+    elif [[ "$iface_mode" == "dhcp" ]]; then
+      pct exec "$CT_ID" -- bash -lc "$cli set-interface \"${iface_name}\" --role routed --dhcp --enabled"
     else
-      pct exec "$CT_ID" -- bash -lc "$cli set-interface \"${iface_name}\" --role routed --disabled"
+      pct exec "$CT_ID" -- bash -lc "$cli set-interface \"${iface_name}\" --role routed --manual --enabled"
     fi
   done
 }
+
+# IPv6 is intentionally disabled by the in-container installer and generated sysctl:
+# net.ipv6.conf.all.disable_ipv6=1
+# net.ipv6.conf.default.disable_ipv6=1
+# net.ipv6.conf.lo.disable_ipv6=1
 
 print_summary() {
   local ct_ip

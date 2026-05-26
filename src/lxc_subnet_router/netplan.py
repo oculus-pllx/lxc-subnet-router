@@ -12,6 +12,11 @@ def generate_netplan(config: RouterConfig) -> str:
             continue
         ethernet: dict = {}
         address = item.get("address")
+        ethernet["dhcp6"] = False
+        ethernet["accept-ra"] = False
+        ethernet["link-local"] = []
+        if item.get("dhcp4"):
+            ethernet["dhcp4"] = True
         if address:
             ethernet["addresses"] = [address]
         routes = []
@@ -32,8 +37,6 @@ def generate_netplan(config: RouterConfig) -> str:
         dns = item.get("dns") or []
         if dns:
             ethernet["nameservers"] = {"addresses": dns}
-        if not ethernet:
-            continue
         ethernets[name] = ethernet
 
     payload = {"network": {"version": 2, "renderer": "networkd", "ethernets": ethernets}}

@@ -120,6 +120,45 @@ def test_cli_set_interface_updates_config(tmp_path):
     assert "via: 10.0.0.1" in preview.stdout
 
 
+def test_cli_set_interface_dhcp_writes_dhcp4_netplan(tmp_path):
+    config_path = tmp_path / "router.yaml"
+
+    subprocess.run(
+        [sys.executable, "-m", "lxc_subnet_router.cli", "--config", str(config_path), "init"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "lxc_subnet_router.cli",
+            "--config",
+            str(config_path),
+            "set-interface",
+            "vlan10",
+            "--role",
+            "routed",
+            "--dhcp",
+            "--enabled",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    preview = subprocess.run(
+        [sys.executable, "-m", "lxc_subnet_router.cli", "--config", str(config_path), "preview"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "vlan10:" in preview.stdout
+    assert "dhcp4: true" in preview.stdout
+    assert "dhcp6: false" in preview.stdout
+
+
 def test_cli_set_user_creates_admin_user_from_env(tmp_path, monkeypatch):
     config_path = tmp_path / "router.yaml"
     monkeypatch.setenv("ROUTER_PASSWORD", "secret-password")

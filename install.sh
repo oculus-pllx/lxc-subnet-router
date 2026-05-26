@@ -53,6 +53,10 @@ fi
 cat >/etc/sysctl.d/99-lxc-subnet-router.conf <<'SYSCTL'
 net.ipv4.ip_forward=1
 net.ipv6.conf.all.forwarding=0
+net.ipv6.conf.default.forwarding=0
+net.ipv6.conf.all.disable_ipv6=1
+net.ipv6.conf.default.disable_ipv6=1
+net.ipv6.conf.lo.disable_ipv6=1
 SYSCTL
 sysctl --system >/dev/null
 

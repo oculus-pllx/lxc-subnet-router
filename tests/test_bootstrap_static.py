@@ -71,6 +71,8 @@ def test_bootstrap_seeds_app_credentials_and_cli_config_inside_container():
     assert "LXC_SUBNET_ROUTER_ADMIN_PASSWORD" in text
     assert "prepare_container_network" in text
     assert "dhcp4: true" in text
+    assert "--dhcp --enabled" in text
+    assert "--role routed --manual --enabled" in text
 
 
 def test_bootstrap_reprompts_bad_questionnaire_entries_and_normalizes_modes():
@@ -84,3 +86,13 @@ def test_bootstrap_reprompts_bad_questionnaire_entries_and_normalizes_modes():
     assert "tr '[:upper:]' '[:lower:]'" in text
     assert "warn \"Use static, dhcp, or manual.\"" in text
     assert "continue" in text
+
+
+def test_bootstrap_and_installer_disable_ipv6_completely():
+    bootstrap = script_text()
+    installer = (ROOT / "install.sh").read_text(encoding="utf-8")
+
+    for text in (bootstrap, installer):
+        assert "net.ipv6.conf.all.disable_ipv6=1" in text
+        assert "net.ipv6.conf.default.disable_ipv6=1" in text
+        assert "net.ipv6.conf.lo.disable_ipv6=1" in text

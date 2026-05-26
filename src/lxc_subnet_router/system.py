@@ -94,9 +94,11 @@ def write_pending_files(config: RouterConfig, netplan_path: Path = NETPLAN_PATH,
         "\n".join(
             [
                 "net.ipv4.ip_forward=1" if config.router.get("ipv4_forwarding", True) else "net.ipv4.ip_forward=0",
-                "net.ipv6.conf.all.forwarding=1"
-                if config.router.get("ipv6_forwarding", False)
-                else "net.ipv6.conf.all.forwarding=0",
+                "net.ipv6.conf.all.forwarding=0",
+                "net.ipv6.conf.default.forwarding=0",
+                "net.ipv6.conf.all.disable_ipv6=1",
+                "net.ipv6.conf.default.disable_ipv6=1",
+                "net.ipv6.conf.lo.disable_ipv6=1",
                 "",
             ]
         ),

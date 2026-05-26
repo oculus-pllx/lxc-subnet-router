@@ -66,6 +66,15 @@ def cmd_set_interface(args: argparse.Namespace) -> int:
         item["role"] = args.role
     if args.address is not None:
         item["address"] = args.address
+        item["dhcp4"] = False
+    if args.dhcp:
+        item["dhcp4"] = True
+        item["address"] = ""
+        item.pop("gateway", None)
+    if args.manual:
+        item["dhcp4"] = False
+        item["address"] = ""
+        item.pop("gateway", None)
     if args.gateway is not None:
         item["gateway"] = args.gateway
     if args.dns is not None:
@@ -179,6 +188,8 @@ def build_parser() -> argparse.ArgumentParser:
     set_interface.add_argument("--address")
     set_interface.add_argument("--gateway")
     set_interface.add_argument("--dns")
+    set_interface.add_argument("--dhcp", action="store_true")
+    set_interface.add_argument("--manual", action="store_true")
     set_interface.add_argument("--enabled", action="store_true")
     set_interface.add_argument("--disabled", action="store_true")
     set_interface.set_defaults(func=cmd_set_interface)

@@ -78,3 +78,31 @@ def test_generate_netplan_includes_management_and_static_routes():
     assert "via: 10.11.200.1" in rendered
     assert "to: 192.168.50.0/24" in rendered
     assert "renderer: networkd" in rendered
+
+
+def test_generate_netplan_supports_dhcp4_and_disables_ipv6_link_local():
+    config = RouterConfig.from_dict(
+        {
+            **default_config(["mgmt0", "vlan10"]),
+            "interfaces": {
+                "mgmt0": {
+                    "role": "management",
+                    "enabled": True,
+                    "dhcp4": True,
+                },
+                "vlan10": {
+                    "role": "routed",
+                    "enabled": True,
+                    "dhcp4": True,
+                },
+            },
+            "static_routes": [],
+        }
+    )
+
+    rendered = generate_netplan(config)
+
+    assert "dhcp4: true" in rendered
+    assert "dhcp6: false" in rendered
+    assert "accept-ra: false" in rendered
+    assert "link-local: []" in rendered
