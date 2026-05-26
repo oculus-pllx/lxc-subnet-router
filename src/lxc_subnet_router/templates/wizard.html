@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Subnet Interface Wizard</h1>
+<p class="hint">Management is configured separately from routed subnet interfaces. Use routed rows only for interfaces that should become subnet gateways.</p>
+<form method="post" action="/wizard">
+  <div class="panel">
+    <h2>Management Interface</h2>
+    <label>Interface
+      <select name="management_name">
+        {% for item in interfaces %}
+          <option value="{{ item.name }}" {% if item.name == management_name %}selected{% endif %}>{{ item.name }}</option>
+        {% endfor %}
+        {% if management_name not in interfaces|map(attribute="name")|list %}
+          <option value="{{ management_name }}" selected>{{ management_name }}</option>
+        {% endif %}
+      </select>
+    </label>
+    <label>Management IP/CIDR
+      <input name="management_address" placeholder="10.11.200.68/24" value="{{ config.interfaces.get(management_name, {}).get('address', '') }}">
+    </label>
+    <label>Management Gateway
+      <input name="management_gateway" placeholder="10.11.200.1" value="{{ config.interfaces.get(management_name, {}).get('gateway', '') }}">
+    </label>
+    <label>DNS Servers
+      <input name="management_dns" placeholder="1.1.1.1,9.9.9.9" value="{{ config.interfaces.get(management_name, {}).get('dns', [])|join(',') }}">
+    </label>
+  </div>
+
+  <h2>Routed Subnet Interfaces</h2>
+  <table>
+    <tr><th>Enable</th><th>Interface</th><th>Subnet Gateway IP/CIDR</th><th>Current Link</th></tr>
+    {% for item in routed %}
+      {% set configured = config.interfaces.get(item.name, {}) %}
+      <tr>
+        <td><input type="checkbox" name="routed_enabled" value="{{ item.name }}" {% if configured.get('role') == 'routed' and configured.get('enabled') %}checked{% endif %}></td>
+        <td><input name="routed_name" value="{{ item.name }}" readonly></td>
+        <td><input name="routed_address" placeholder="192.168.10.1/24" value="{{ configured.get('address', '') }}"></td>
+        <td>{{ item.state }} {{ item.addresses|join(", ") }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+  <button type="submit">Save And Preview Netplan</button>
+</form>
+{% endblock %}

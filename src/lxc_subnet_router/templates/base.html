@@ -1,21 +1,27 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LXC Subnet Router</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 0; color: #17202a; background: #f4f6f8; }
-    header { background: #1b2631; color: white; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; }
-    nav a { color: white; margin-right: 14px; text-decoration: none; }
+    :root { color-scheme: dark; --bg: #0d1117; --panel: #151b23; --panel-2: #1f2937; --text: #e6edf3; --muted: #9aa7b2; --line: #30363d; --accent: #58a6ff; --danger: #ff7b72; }
+    body { font-family: system-ui, sans-serif; margin: 0; color: var(--text); background: var(--bg); }
+    header { background: #010409; color: var(--text); padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); }
+    nav a { color: var(--text); margin-right: 14px; text-decoration: none; }
+    nav a:hover { color: var(--accent); }
     main { padding: 18px; max-width: 1200px; margin: 0 auto; }
-    table { width: 100%; border-collapse: collapse; background: white; margin: 12px 0 24px; }
-    th, td { text-align: left; border-bottom: 1px solid #d9dee3; padding: 8px; vertical-align: top; }
-    pre { background: #101820; color: #e8f0f2; padding: 14px; overflow: auto; }
+    table { width: 100%; border-collapse: collapse; background: var(--panel); margin: 12px 0 24px; border: 1px solid var(--line); }
+    th, td { text-align: left; border-bottom: 1px solid var(--line); padding: 8px; vertical-align: top; }
+    th { color: var(--muted); background: var(--panel-2); }
+    pre { background: #010409; color: var(--text); padding: 14px; overflow: auto; border: 1px solid var(--line); }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-    .panel { background: white; padding: 14px; border: 1px solid #d9dee3; }
-    button, input { font: inherit; padding: 8px; }
-    .error { color: #9b1c1c; }
+    .panel { background: var(--panel); padding: 14px; border: 1px solid var(--line); }
+    button, input, select { font: inherit; padding: 8px; color: var(--text); background: #0d1117; border: 1px solid var(--line); }
+    button { cursor: pointer; background: var(--panel-2); }
+    label { display: block; margin: 10px 0; color: var(--muted); }
+    .hint { color: var(--muted); }
+    .error { color: var(--danger); }
   </style>
 </head>
 <body>
@@ -23,6 +29,7 @@
   <nav>
     <strong>LXC Subnet Router</strong>
     <a href="/">Dashboard</a>
+    <a href="/wizard">Wizard</a>
     <a href="/interfaces">Interfaces</a>
     <a href="/routes">Routes</a>
     <a href="/preview">Preview</a>

@@ -39,6 +39,21 @@ def create_app(config_path: Path = DEFAULT_CONFIG_PATH) -> FastAPI:
             raise LoginRequired()
         return user
 
+    def wizard_context(request: Request, user: str):
+        config = load_config()
+        discovered = discover_interfaces()
+        names = [item["name"] for item in discovered]
+        management_name = "mgmt0" if "mgmt0" in names or "mgmt0" in config.interfaces else (names[0] if names else "mgmt0")
+        routed = [item for item in discovered if item["name"] != management_name and item["name"] != "lo"]
+        return {
+            "request": request,
+            "user": user,
+            "config": config.data,
+            "interfaces": discovered,
+            "management_name": management_name,
+            "routed": routed,
+        }
+
     @app.exception_handler(LoginRequired)
     async def login_exception_handler(request: Request, exc: LoginRequired):
         return RedirectResponse("/login", status_code=303)
@@ -91,6 +106,55 @@ def create_app(config_path: Path = DEFAULT_CONFIG_PATH) -> FastAPI:
     @app.get("/interfaces", response_class=HTMLResponse)
     def interfaces(request: Request, user: str = Depends(require_user)):
         return templates.TemplateResponse(request, "interfaces.html", {"user": user, "interfaces": discover_interfaces(), "config": load_config().data})
+
+    @app.get("/wizard", response_class=HTMLResponse)
+    def wizard(request: Request, user: str = Depends(require_user)):
+        return templates.TemplateResponse(request, "wizard.html", wizard_context(request, user))
+
+    @app.post("/wizard")
+    async def save_wizard(request: Request, user: str = Depends(require_user)):
+        form = await request.form()
+        config = load_config()
+        interfaces = config.data.setdefault("interfaces", {})
+        management_name = str(form.get("management_name") or "mgmt0")
+        for name, item in interfaces.items():
+            if item.get("role") == "management" and name != management_name:
+                item["role"] = "unused"
+                item["enabled"] = False
+        management = interfaces.setdefault(management_name, {})
+        management["role"] = "management"
+        management["enabled"] = True
+        management["address"] = str(form.get("management_address") or "")
+        gateway = str(form.get("management_gateway") or "")
+        if gateway:
+            management["gateway"] = gateway
+        else:
+            management.pop("gateway", None)
+        dns = [entry.strip() for entry in str(form.get("management_dns") or "").split(",") if entry.strip()]
+        if dns:
+            management["dns"] = dns
+        else:
+            management.pop("dns", None)
+
+        routed_names = form.getlist("routed_name")
+        routed_addresses = form.getlist("routed_address")
+        for name, address in zip(routed_names, routed_addresses):
+            name = str(name).strip()
+            address = str(address).strip()
+            if not name or name == management_name:
+                continue
+            routed_interface = interfaces.setdefault(name, {})
+            if address:
+                routed_interface["role"] = "routed"
+                routed_interface["enabled"] = True
+                routed_interface["address"] = address
+            else:
+                routed_interface["role"] = "unused"
+                routed_interface["enabled"] = False
+                routed_interface["address"] = ""
+
+        config.save(config_path)
+        return RedirectResponse("/preview", status_code=303)
 
     @app.get("/routes", response_class=HTMLResponse)
     def routes(request: Request, user: str = Depends(require_user)):

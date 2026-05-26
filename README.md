@@ -33,7 +33,9 @@ cd lxc-subnet-router
 sudo ./install.sh
 ```
 
-The web UI listens on `0.0.0.0:8443` by default. Initial auth uses a local admin user created by the installer.
+The web UI listens on `0.0.0.0:8443` by default and uses dark mode by default. Initial auth uses a local admin user created by the installer.
+
+After login, open **Wizard** to configure the management interface and routed subnet interfaces. The wizard defaults management to `mgmt0` when it exists. Management stays separate from routed subnet interfaces; routed rows are configured only when you provide each subnet gateway CIDR.
 
 ## CLI
 
