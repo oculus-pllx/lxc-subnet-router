@@ -68,7 +68,9 @@ def test_bootstrap_seeds_app_credentials_and_cli_config_inside_container():
     assert "${iface_name}" in text
     assert "set-user '$ROUTER_ADMIN_USER' --group admin" in text
     assert "verify-login '$ROUTER_ADMIN_USER' --password-env ROUTER_PASSWORD" in text
-    assert "LXC_SUBNET_ROUTER_ADMIN_PASSWORD" in text
+    assert "LXC_SUBNET_ROUTER_SKIP_ADMIN=1" in text
+    assert "systemctl restart lxc-subnet-router.service" in text
+    assert "Router web UI login set to ${ROUTER_ADMIN_USER}." in text
     assert "prepare_container_network" in text
     assert "dhcp4: true" in text
     assert "--dhcp --enabled" in text

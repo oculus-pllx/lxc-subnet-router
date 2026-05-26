@@ -13,6 +13,13 @@ def test_install_script_accepts_noninteractive_admin_credentials():
     assert "set-user admin --disabled" in text
 
 
+def test_install_script_can_skip_admin_creation_for_bootstrap_finalization():
+    text = (ROOT / "install.sh").read_text(encoding="utf-8")
+
+    assert "LXC_SUBNET_ROUTER_SKIP_ADMIN" in text
+    assert 'if [[ "${LXC_SUBNET_ROUTER_SKIP_ADMIN:-0}" != "1" ]]' in text
+
+
 def test_install_script_disables_ipv6_completely():
     text = (ROOT / "install.sh").read_text(encoding="utf-8")
 
