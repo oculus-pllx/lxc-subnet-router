@@ -45,7 +45,7 @@ The bootstrapper creates the LXC, attaches `mgmt0` and any additional routed int
 | Router admin username/password | `admin` | Used for the web UI |
 | Management bridge or SDN VNet | `vmbr0` | Shows detected Proxmox Linux bridges and SDN VNets, but allows manual entry |
 | Management IP | manual | Use static CIDR for a fully automated install, or `dhcp` for temporary DHCP bootstrap networking |
-| Additional routed interfaces | `2` | Each gets a friendly interface name, Proxmox bridge or SDN VNet, and optional static subnet gateway CIDR |
+| Additional routed interfaces | `2` | Each gets a friendly interface name, Proxmox bridge or SDN VNet, and static, DHCP, or manual addressing |
 
 Proxmox attaches interfaces with `ip=manual`. The app owns the persistent in-container Netplan config. During bootstrap only, the script brings up temporary management networking so packages can install.
 
@@ -56,10 +56,25 @@ Questionnaire entries re-prompt on validation errors instead of exiting. Mode an
 If a container was created before a fix landed, update the app inside the container before using newer CLI commands:
 
 ```bash
-pct exec <CT_ID> -- bash -lc 'cd /opt/lxc-subnet-router-src && git pull && ./install.sh'
+pct exec <CT_ID> -- env LXC_SUBNET_ROUTER_SKIP_ADMIN=1 bash -lc 'cd /opt/lxc-subnet-router-src && git pull && ./install.sh'
 ```
 
 DHCP interface config is persisted as Netplan `dhcp4: true`. IPv6 is disabled through generated Netplan (`dhcp6: false`, `accept-ra: false`, `link-local: []`) and sysctl (`disable_ipv6=1` for all/default/lo).
+
+`vlan10`, `vlan20`, and similar names are LXC interface names only. The actual VLAN or SDN attachment is whatever Proxmox bridge, VNet, or host-side network you select during the questionnaire.
+
+The container root password and router web UI password are separate. The root password is for console or SSH access to the LXC. The router admin username/password is finalized after the app install, verified with the app CLI, and used at `http://<management-ip>:8443`.
+
+If the web UI password is not accepted after updating older code, reset it from the Proxmox node:
+
+```bash
+pct exec <CT_ID> -- env LXC_SUBNET_ROUTER_SKIP_ADMIN=1 bash -lc 'cd /opt/lxc-subnet-router-src && git pull && ./install.sh'
+pct exec <CT_ID> -- env ROUTER_PASSWORD='new-password-here' bash -lc '/opt/lxc-subnet-router/venv/bin/lxc-subnet-router --config /opt/lxc-subnet-router/config/router.yaml set-user admin --group admin --password-env ROUTER_PASSWORD --enabled'
+pct exec <CT_ID> -- env ROUTER_PASSWORD='new-password-here' bash -lc '/opt/lxc-subnet-router/venv/bin/lxc-subnet-router --config /opt/lxc-subnet-router/config/router.yaml verify-login admin --password-env ROUTER_PASSWORD'
+pct exec <CT_ID> -- systemctl restart lxc-subnet-router.service
+```
+
+Replace `admin` if you chose a different router admin username.
 
 ### Existing LXC Install
 
