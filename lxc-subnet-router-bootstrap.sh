@@ -82,6 +82,86 @@ read_required_secret() {
   printf '%s\n' "$value"
 }
 
+read_valid() {
+  local prompt=$1
+  local default_value=$2
+  local validator=$3
+  local message=$4
+  local value
+  while true; do
+    read -rp "$prompt [$default_value]: " value
+    value="${value:-$default_value}"
+    if "$validator" "$value"; then
+      printf '%s\n' "$value"
+      return 0
+    fi
+    warn "$message"
+  done
+}
+
+valid_number() {
+  [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+valid_admin_username() {
+  [[ "$1" =~ ^[a-z_][a-z0-9_-]*$ ]]
+}
+
+valid_ipv4() {
+  [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
+valid_ipv4_cidr() {
+  [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]
+}
+
+valid_dns_list() {
+  [[ "$1" =~ ^[0-9.,[:space:]]+$ ]]
+}
+
+valid_management_address() {
+  local value
+  value=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  [[ -z "$value" || "$value" == "dhcp" || "$value" == "manual" || "$value" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]
+}
+
+read_resource_number() {
+  read_valid "$1" "$2" valid_number "$1 must be numeric."
+}
+
+read_ipv4_cidr_or_mode() {
+  local value
+  while true; do
+    read -rp "$1 [$2]: " value
+    value="${value:-$2}"
+    value=$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]')
+    if valid_management_address "$value"; then
+      printf '%s\n' "$value"
+      return 0
+    fi
+    warn "$1 must be dhcp/manual or IPv4 CIDR."
+  done
+}
+
+read_routed_mode() {
+  local mode
+  while true; do
+    read -rp "DHCP/manual or static? [static]: " mode
+    mode="${mode:-static}"
+    mode=$(printf '%s' "$mode" | tr '[:upper:]' '[:lower:]')
+    case "$mode" in
+      static|dhcp|manual)
+        printf '%s\n' "$mode"
+        return 0
+        ;;
+      *)
+        warn "Use static, dhcp, or manual."
+        continue
+        ;;
+    esac
+  done
+}
+
 choose_os() {
   echo -e "${BOLD}OS Template${NC}"
   echo "  1) Ubuntu 24.04 LTS (default)"
@@ -151,23 +231,28 @@ select_network() {
   local default_value=$2
   local choice selected
 
-  echo "Available Proxmox bridges and SDN VNets:" >&2
-  local index=1
-  for network in "${AVAILABLE_NETWORKS[@]}"; do
-    echo "  ${index}) ${network}" >&2
-    index=$((index + 1))
-  done
-  echo "Enter a number or network name. Manual entries are allowed." >&2
+  while true; do
+    echo "Available Proxmox bridges and SDN VNets:" >&2
+    local index=1
+    for network in "${AVAILABLE_NETWORKS[@]}"; do
+      echo "  ${index}) ${network}" >&2
+      index=$((index + 1))
+    done
+    echo "Enter a number or network name. Manual entries are allowed." >&2
 
-  read -rp "$prompt [$default_value]: " choice
-  choice="${choice:-$default_value}"
-  if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#AVAILABLE_NETWORKS[@]} )); then
-    selected="${AVAILABLE_NETWORKS[$((choice - 1))]}"
-  else
-    selected="$choice"
-  fi
-  valid_name "$selected" || error "Invalid Proxmox bridge or SDN VNet name: $selected"
-  printf '%s\n' "$selected"
+    read -rp "$prompt [$default_value]: " choice
+    choice="${choice:-$default_value}"
+    if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#AVAILABLE_NETWORKS[@]} )); then
+      selected="${AVAILABLE_NETWORKS[$((choice - 1))]}"
+    else
+      selected="$choice"
+    fi
+    if valid_name "$selected"; then
+      printf '%s\n' "$selected"
+      return 0
+    fi
+    warn "Invalid Proxmox bridge or SDN VNet name."
+  done
 }
 
 get_config() {
@@ -178,54 +263,48 @@ get_config() {
 
   choose_os
 
-  read -rp "Container ID [$next_id]: " CT_ID
-  CT_ID="${CT_ID:-$next_id}"
-  [[ "$CT_ID" =~ ^[0-9]+$ ]] || error "Container ID must be numeric."
-  pct status "$CT_ID" >/dev/null 2>&1 && error "Container ID $CT_ID already exists."
+  while true; do
+    CT_ID=$(read_valid "Container ID" "$next_id" valid_number "Container ID must be numeric.")
+    if pct status "$CT_ID" >/dev/null 2>&1; then
+      warn "Container ID $CT_ID already exists."
+      continue
+    fi
+    break
+  done
 
-  read -rp "Hostname [lxc-subnet-router]: " CT_HOSTNAME
-  CT_HOSTNAME="${CT_HOSTNAME:-lxc-subnet-router}"
-  valid_name "$CT_HOSTNAME" || error "Invalid hostname."
+  CT_HOSTNAME=$(read_valid "Hostname" "lxc-subnet-router" valid_name "Invalid hostname.")
 
   CT_PASSWORD=$(read_required_secret "Container root password: ")
 
-  read -rp "CPU cores [2]: " CT_CORES
-  CT_CORES="${CT_CORES:-2}"
-  read -rp "RAM in MB [1024]: " CT_RAM
-  CT_RAM="${CT_RAM:-1024}"
-  read -rp "Swap in MB [512]: " CT_SWAP
-  CT_SWAP="${CT_SWAP:-512}"
-  read -rp "Disk size in GB [8]: " CT_DISK
-  CT_DISK="${CT_DISK:-8}"
-  read -rp "Storage [$default_storage]: " CT_STORAGE
-  CT_STORAGE="${CT_STORAGE:-$default_storage}"
+  CT_CORES=$(read_resource_number "CPU cores" "2")
+  CT_RAM=$(read_resource_number "RAM in MB" "1024")
+  read -rp "Swap in MB [$CT_RAM]: " CT_SWAP
+  CT_SWAP="${CT_SWAP:-$CT_RAM}"
+  while ! valid_number "$CT_SWAP"; do
+    warn "Swap in MB must be numeric."
+    read -rp "Swap in MB [$CT_RAM]: " CT_SWAP
+    CT_SWAP="${CT_SWAP:-$CT_RAM}"
+  done
+  CT_DISK=$(read_resource_number "Disk size in GB" "8")
+  CT_STORAGE=$(read_valid "Storage" "$default_storage" valid_name "Invalid storage name.")
 
   echo ""
   echo -e "${BOLD}Router Admin${NC}"
-  read -rp "Router admin username [admin]: " ROUTER_ADMIN_USER
-  ROUTER_ADMIN_USER="${ROUTER_ADMIN_USER:-admin}"
-  [[ "$ROUTER_ADMIN_USER" =~ ^[a-z_][a-z0-9_-]*$ ]] || error "Invalid admin username."
+  ROUTER_ADMIN_USER=$(read_valid "Router admin username" "admin" valid_admin_username "Invalid admin username.")
   ROUTER_ADMIN_PASSWORD=$(read_required_secret "Router admin password: ")
 
   echo ""
   echo -e "${BOLD}Management Interface${NC}"
   MGMT_BRIDGE=$(select_network "Management bridge or SDN VNet" "vmbr0")
-  read -rp "Management IP/CIDR [dhcp/manual]: " MGMT_ADDRESS
-  MGMT_ADDRESS="${MGMT_ADDRESS:-}"
+  MGMT_ADDRESS=$(read_ipv4_cidr_or_mode "Management IP/CIDR" "manual")
   if [[ -n "$MGMT_ADDRESS" && "$MGMT_ADDRESS" != "dhcp" && "$MGMT_ADDRESS" != "manual" ]]; then
-    [[ "$MGMT_ADDRESS" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]] || error "Management IP must be dhcp/manual or IPv4 CIDR."
-    read -rp "Management gateway: " MGMT_GATEWAY
-    [[ "$MGMT_GATEWAY" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || error "Management gateway must be a plain IPv4 address."
+    MGMT_GATEWAY=$(read_valid "Management gateway" "" valid_ipv4 "Management gateway must be a plain IPv4 address.")
   fi
-  read -rp "Management DNS [1.1.1.1,9.9.9.9]: " MGMT_DNS
-  MGMT_DNS="${MGMT_DNS:-1.1.1.1,9.9.9.9}"
-  [[ "$MGMT_DNS" =~ ^[0-9.,[:space:]]+$ ]] || error "Management DNS must be comma-separated IPv4 addresses."
+  MGMT_DNS=$(read_valid "Management DNS" "1.1.1.1,9.9.9.9" valid_dns_list "Management DNS must be comma-separated IPv4 addresses.")
 
   echo ""
   echo -e "${BOLD}Routed Interfaces${NC}"
-  read -rp "How many additional routed interfaces? [2]: " ROUTED_COUNT
-  ROUTED_COUNT="${ROUTED_COUNT:-2}"
-  [[ "$ROUTED_COUNT" =~ ^[0-9]+$ ]] || error "Interface count must be numeric."
+  ROUTED_COUNT=$(read_resource_number "How many additional routed interfaces?" "2")
 
   for ((i = 1; i <= ROUTED_COUNT; i++)); do
     local default_name default_bridge iface_name bridge mode address
@@ -233,23 +312,22 @@ get_config() {
     default_bridge="vmbr$((i * 10))"
     echo ""
     echo "Additional interface $i"
-    read -rp "Interface name [$default_name]: " iface_name
-    iface_name="${iface_name:-$default_name}"
-    valid_iface "$iface_name" || error "Invalid interface name $iface_name."
-    [[ "$iface_name" != "mgmt0" ]] || error "Additional routed interface cannot be mgmt0."
+    while true; do
+      iface_name=$(read_valid "Interface name" "$default_name" valid_iface "Invalid interface name.")
+      if [[ "$iface_name" == "mgmt0" ]]; then
+        warn "Additional routed interface cannot be mgmt0."
+        continue
+      fi
+      break
+    done
     bridge=$(select_network "Bridge or SDN VNet" "$default_bridge")
-    read -rp "DHCP/manual or static? [static]: " mode
-    mode="${mode:-static}"
+    mode=$(read_routed_mode)
     case "$mode" in
       static)
-        read -rp "Subnet gateway CIDR for $iface_name (example 192.168.$((i * 10)).1/24): " address
-        [[ "$address" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]] || error "Subnet gateway CIDR is required for static routed interface."
+        address=$(read_valid "Subnet gateway CIDR for $iface_name" "192.168.$((i * 10)).1/24" valid_ipv4_cidr "Subnet gateway CIDR must be an IPv4 CIDR.")
         ;;
       dhcp|manual)
         address=""
-        ;;
-      *)
-        error "Use static, dhcp, or manual."
         ;;
     esac
     ROUTED_NAMES+=("$iface_name")

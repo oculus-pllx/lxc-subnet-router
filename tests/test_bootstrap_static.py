@@ -55,6 +55,7 @@ def test_bootstrap_discovers_proxmox_bridges_and_sdn_vnets_for_selection():
     assert "Available Proxmox bridges and SDN VNets" in text
     assert "select_network" in text
     assert "Enter a number or network name" in text
+    assert "Invalid Proxmox bridge or SDN VNet name." in text
 
 
 def test_bootstrap_seeds_app_credentials_and_cli_config_inside_container():
@@ -68,3 +69,16 @@ def test_bootstrap_seeds_app_credentials_and_cli_config_inside_container():
     assert "set-user '$ROUTER_ADMIN_USER' --group admin" in text
     assert "prepare_container_network" in text
     assert "dhcp4: true" in text
+
+
+def test_bootstrap_reprompts_bad_questionnaire_entries_and_normalizes_modes():
+    text = script_text()
+
+    assert "read_valid" in text
+    assert "read_ipv4_cidr_or_mode" in text
+    assert "read_resource_number" in text
+    assert 'CT_SWAP="${CT_SWAP:-$CT_RAM}"' in text
+    assert 'mode=$(printf' in text
+    assert "tr '[:upper:]' '[:lower:]'" in text
+    assert "warn \"Use static, dhcp, or manual.\"" in text
+    assert "continue" in text
