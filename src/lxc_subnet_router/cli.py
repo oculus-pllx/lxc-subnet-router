@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from lxc_subnet_router.auth import hash_password
+from lxc_subnet_router.auth import hash_password, verify_password
 from lxc_subnet_router.config import RouterConfig, default_config, load_or_default
 from lxc_subnet_router.netplan import generate_netplan
 from lxc_subnet_router.system import apply_config, current_routes, discover_interfaces, forwarding_status
@@ -116,6 +116,23 @@ def cmd_set_user(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_verify_login(args: argparse.Namespace) -> int:
+    config = _load(args.config)
+    password = os.environ.get(args.password_env)
+    if not password:
+        print(f"error: environment variable {args.password_env} is empty")
+        return 1
+    user = config.data.get("users", {}).get(args.username)
+    if not user or not user.get("enabled", True):
+        print("error: user not found or disabled")
+        return 1
+    if not verify_password(user.get("password_hash", ""), password):
+        print("error: login failed")
+        return 1
+    print("login ok")
+    return 0
+
+
 def cmd_apply(args: argparse.Namespace) -> int:
     errors = apply_config(_load(args.config), dry_run=args.dry_run)
     if errors:
@@ -178,6 +195,10 @@ def build_parser() -> argparse.ArgumentParser:
     set_user.add_argument("--enabled", action="store_true")
     set_user.add_argument("--disabled", action="store_true")
     set_user.set_defaults(func=cmd_set_user)
+    verify_login = subparsers.add_parser("verify-login")
+    verify_login.add_argument("username")
+    verify_login.add_argument("--password-env", required=True)
+    verify_login.set_defaults(func=cmd_verify_login)
     return parser
 
 

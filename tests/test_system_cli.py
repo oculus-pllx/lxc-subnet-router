@@ -152,3 +152,54 @@ def test_cli_set_user_creates_admin_user_from_env(tmp_path, monkeypatch):
 
     assert result.returncode == 0
     assert "updated user routeradmin" in result.stdout
+
+
+def test_cli_verify_login_accepts_shell_sensitive_password(tmp_path, monkeypatch):
+    config_path = tmp_path / "router.yaml"
+    password = "DHCP! pass '$x\" ok"
+    monkeypatch.setenv("ROUTER_PASSWORD", password)
+
+    subprocess.run(
+        [sys.executable, "-m", "lxc_subnet_router.cli", "--config", str(config_path), "init"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "lxc_subnet_router.cli",
+            "--config",
+            str(config_path),
+            "set-user",
+            "routeradmin",
+            "--group",
+            "admin",
+            "--password-env",
+            "ROUTER_PASSWORD",
+            "--enabled",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "lxc_subnet_router.cli",
+            "--config",
+            str(config_path),
+            "verify-login",
+            "routeradmin",
+            "--password-env",
+            "ROUTER_PASSWORD",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "login ok" in result.stdout

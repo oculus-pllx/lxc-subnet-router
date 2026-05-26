@@ -425,7 +425,7 @@ install_app() {
   info "Installing app inside container ..."
   pct exec "$CT_ID" -- bash -lc "apt-get update && apt-get install -y git curl"
   pct exec "$CT_ID" -- env REPO_URL="$REPO_URL" bash -lc 'rm -rf /opt/lxc-subnet-router-src && git clone "$REPO_URL" /opt/lxc-subnet-router-src'
-  pct exec "$CT_ID" -- env ROUTER_PASSWORD="$ROUTER_ADMIN_PASSWORD" bash -lc 'cd /opt/lxc-subnet-router-src && printf "%s\n" "$ROUTER_PASSWORD" | ./install.sh'
+  pct exec "$CT_ID" -- env LXC_SUBNET_ROUTER_ADMIN_USER="$ROUTER_ADMIN_USER" LXC_SUBNET_ROUTER_ADMIN_PASSWORD="$ROUTER_ADMIN_PASSWORD" bash -lc 'cd /opt/lxc-subnet-router-src && ./install.sh'
 }
 
 configure_app() {
@@ -436,6 +436,7 @@ configure_app() {
   if [[ "$ROUTER_ADMIN_USER" != "admin" ]]; then
     pct exec "$CT_ID" -- bash -lc "$cli set-user admin --disabled"
   fi
+  pct exec "$CT_ID" -- env ROUTER_PASSWORD="$ROUTER_ADMIN_PASSWORD" bash -lc "$cli verify-login '$ROUTER_ADMIN_USER' --password-env ROUTER_PASSWORD"
 
   if [[ -n "$MGMT_ADDRESS" && "$MGMT_ADDRESS" != "dhcp" && "$MGMT_ADDRESS" != "manual" ]]; then
     pct exec "$CT_ID" -- bash -lc "$cli set-interface mgmt0 --role management --address '$MGMT_ADDRESS' --gateway '$MGMT_GATEWAY' --dns '$MGMT_DNS' --enabled"

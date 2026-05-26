@@ -37,9 +37,17 @@ python3 -m venv "$APP_DIR/venv"
 "$APP_DIR/venv/bin/python" -m pip install "$APP_DIR"
 
 if [[ ! -f "$CONFIG_FILE" ]]; then
-  read -r -s -p "Initial admin password: " ADMIN_PASSWORD
-  echo
+  ADMIN_USER="${LXC_SUBNET_ROUTER_ADMIN_USER:-admin}"
+  ADMIN_PASSWORD="${LXC_SUBNET_ROUTER_ADMIN_PASSWORD:-}"
+  if [[ -z "$ADMIN_PASSWORD" ]]; then
+    read -r -s -p "Initial admin password: " ADMIN_PASSWORD
+    echo
+  fi
   "$APP_DIR/venv/bin/lxc-subnet-router" --config "$CONFIG_FILE" init --admin-password "$ADMIN_PASSWORD"
+  if [[ "$ADMIN_USER" != "admin" ]]; then
+    LXC_SUBNET_ROUTER_PASSWORD="$ADMIN_PASSWORD" "$APP_DIR/venv/bin/lxc-subnet-router" --config "$CONFIG_FILE" set-user "$ADMIN_USER" --group admin --password-env LXC_SUBNET_ROUTER_PASSWORD --enabled
+    "$APP_DIR/venv/bin/lxc-subnet-router" --config "$CONFIG_FILE" set-user admin --disabled
+  fi
 fi
 
 cat >/etc/sysctl.d/99-lxc-subnet-router.conf <<'SYSCTL'

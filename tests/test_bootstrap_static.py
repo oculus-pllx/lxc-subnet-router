@@ -67,6 +67,8 @@ def test_bootstrap_seeds_app_credentials_and_cli_config_inside_container():
     assert "set-interface mgmt0 --role management" in text
     assert "${iface_name}" in text
     assert "set-user '$ROUTER_ADMIN_USER' --group admin" in text
+    assert "verify-login '$ROUTER_ADMIN_USER' --password-env ROUTER_PASSWORD" in text
+    assert "LXC_SUBNET_ROUTER_ADMIN_PASSWORD" in text
     assert "prepare_container_network" in text
     assert "dhcp4: true" in text
 
