@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
 import yaml
@@ -93,6 +94,28 @@ def cmd_add_route(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_set_user(args: argparse.Namespace) -> int:
+    config = _load(args.config)
+    user = config.data.setdefault("users", {}).setdefault(args.username, {})
+    if args.group:
+        user["group"] = args.group
+    if args.password_env:
+        password = os.environ.get(args.password_env)
+        if not password:
+            print(f"error: environment variable {args.password_env} is empty")
+            return 1
+        user["password_hash"] = hash_password(password)
+    if args.enabled:
+        user["enabled"] = True
+    if args.disabled:
+        user["enabled"] = False
+    user.setdefault("enabled", True)
+    user.setdefault("group", "viewer")
+    config.save(args.config)
+    print(f"updated user {args.username}")
+    return 0
+
+
 def cmd_apply(args: argparse.Namespace) -> int:
     errors = apply_config(_load(args.config), dry_run=args.dry_run)
     if errors:
@@ -148,6 +171,13 @@ def build_parser() -> argparse.ArgumentParser:
     add_route.add_argument("--interface", required=True)
     add_route.add_argument("--metric", type=int, default=100)
     add_route.set_defaults(func=cmd_add_route)
+    set_user = subparsers.add_parser("set-user")
+    set_user.add_argument("username")
+    set_user.add_argument("--group", choices=["admin", "operator", "viewer"])
+    set_user.add_argument("--password-env")
+    set_user.add_argument("--enabled", action="store_true")
+    set_user.add_argument("--disabled", action="store_true")
+    set_user.set_defaults(func=cmd_set_user)
     return parser
 
 

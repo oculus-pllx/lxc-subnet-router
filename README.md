@@ -25,6 +25,31 @@ Clients on each routed subnet should use the LXC interface IP as their gateway.
 
 ## Install
 
+### One-Line Proxmox LXC Bootstrap
+
+Run this from a Proxmox node shell as `root`:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/oculus-pllx/lxc-subnet-router/main/lxc-subnet-router-bootstrap.sh)
+```
+
+The bootstrapper creates the LXC, attaches `mgmt0` and any additional routed interfaces, installs the app, creates the router admin user, and seeds the initial interface config. It asks for:
+
+| Prompt | Default | Notes |
+|---|---|---|
+| OS | Ubuntu 24.04 | Ubuntu 26.04 and Debian 13 are also offered |
+| Container ID | next available | Resolved with Proxmox `pvesh` |
+| Hostname | `lxc-subnet-router` | |
+| Root password | none | Used for the LXC root account |
+| Router admin username/password | `admin` | Used for the web UI |
+| Management bridge | `vmbr0` | Attached as `mgmt0` |
+| Management IP | manual | Use static CIDR for a fully automated install, or `dhcp` for temporary DHCP bootstrap networking |
+| Additional routed interfaces | `2` | Each gets a friendly interface name, Proxmox bridge, and optional static subnet gateway CIDR |
+
+Proxmox attaches interfaces with `ip=manual`. The app owns the persistent in-container Netplan config. During bootstrap only, the script brings up temporary management networking so packages can install.
+
+### Existing LXC Install
+
 Inside the LXC:
 
 ```bash
