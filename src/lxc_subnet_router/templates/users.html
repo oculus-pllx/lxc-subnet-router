@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Users</h1>
+<table><tr><th>User</th><th>Group</th><th>Enabled</th></tr>
+{% for name, item in config.users.items() %}
+<tr><td>{{ name }}</td><td>{{ item.group }}</td><td>{{ item.enabled }}</td></tr>
+{% endfor %}
+</table>
+<h2>Groups</h2>
+<table><tr><th>Group</th><th>Permissions</th></tr>
+{% for name, item in config.groups.items() %}
+<tr><td>{{ name }}</td><td>{{ item.permissions|join(", ") }}</td></tr>
+{% endfor %}
+</table>
+{% endblock %}

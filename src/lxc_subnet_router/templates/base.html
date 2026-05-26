@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LXC Subnet Router</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; color: #17202a; background: #f4f6f8; }
+    header { background: #1b2631; color: white; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; }
+    nav a { color: white; margin-right: 14px; text-decoration: none; }
+    main { padding: 18px; max-width: 1200px; margin: 0 auto; }
+    table { width: 100%; border-collapse: collapse; background: white; margin: 12px 0 24px; }
+    th, td { text-align: left; border-bottom: 1px solid #d9dee3; padding: 8px; vertical-align: top; }
+    pre { background: #101820; color: #e8f0f2; padding: 14px; overflow: auto; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    .panel { background: white; padding: 14px; border: 1px solid #d9dee3; }
+    button, input { font: inherit; padding: 8px; }
+    .error { color: #9b1c1c; }
+  </style>
+</head>
+<body>
+<header>
+  <nav>
+    <strong>LXC Subnet Router</strong>
+    <a href="/">Dashboard</a>
+    <a href="/interfaces">Interfaces</a>
+    <a href="/routes">Routes</a>
+    <a href="/preview">Preview</a>
+    <a href="/users">Users</a>
+    <a href="/health">Health</a>
+  </nav>
+  <form action="/logout" method="post"><button type="submit">Logout</button></form>
+</header>
+<main>{% block content %}{% endblock %}</main>
+</body>
+</html>

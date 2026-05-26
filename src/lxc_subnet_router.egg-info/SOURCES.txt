@@ -1,0 +1,9 @@
+pyproject.toml
+src/lxc_subnet_router/__init__.py
+src/lxc_subnet_router.egg-info/PKG-INFO
+src/lxc_subnet_router.egg-info/SOURCES.txt
+src/lxc_subnet_router.egg-info/dependency_links.txt
+src/lxc_subnet_router.egg-info/entry_points.txt
+src/lxc_subnet_router.egg-info/requires.txt
+src/lxc_subnet_router.egg-info/top_level.txt
+tests/test_package.py

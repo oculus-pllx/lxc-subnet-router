@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Generated Netplan</h1>
+<pre>{{ netplan }}</pre>
+<form action="/apply" method="post">
+  <input type="hidden" name="dry_run" value="true">
+  <button type="submit">Validate Dry Run</button>
+</form>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Apply Result</h1>
+{% if errors %}
+  {% for error in errors %}<p class="error">{{ error }}</p>{% endfor %}
+{% else %}
+  <p>{{ "Dry run passed" if dry_run else "Configuration applied" }}</p>
+{% endif %}
+{% endblock %}

@@ -1,1 +1,4 @@
 *:Zone.Identifier
+.venv/
+__pycache__/
+.pytest_cache/

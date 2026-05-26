@@ -1,0 +1,2 @@
+[console_scripts]
+lxc-subnet-router = lxc_subnet_router.cli:main

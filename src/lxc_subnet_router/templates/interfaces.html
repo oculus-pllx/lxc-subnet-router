@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Interfaces</h1>
+<table><tr><th>Name</th><th>State</th><th>Addresses</th><th>MAC</th><th>RX</th><th>TX</th><th>Configured Role</th></tr>
+{% for item in interfaces %}
+<tr>
+  <td>{{ item.name }}</td><td>{{ item.state }}</td><td>{{ item.addresses|join(", ") }}</td><td>{{ item.mac }}</td>
+  <td>{{ item.rx_bytes }}</td><td>{{ item.tx_bytes }}</td><td>{{ config.interfaces.get(item.name, {}).get("role", "unused") }}</td>
+</tr>
+{% endfor %}
+</table>
+{% endblock %}

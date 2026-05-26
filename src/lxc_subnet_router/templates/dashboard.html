@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Dashboard</h1>
+<div class="grid">
+  <div class="panel"><strong>IPv4 forwarding</strong><br>{{ forwarding.ipv4 }}</div>
+  <div class="panel"><strong>IPv6 forwarding</strong><br>{{ forwarding.ipv6 }}</div>
+  <div class="panel"><strong>Interfaces</strong><br>{{ interfaces|length }}</div>
+  <div class="panel"><strong>Routes</strong><br>{{ routes|length }}</div>
+  <div class="panel"><strong>Listen</strong><br>{{ config.router.listen_host }}:{{ config.router.listen_port }}</div>
+</div>
+<h2>Configured Interfaces</h2>
+<table><tr><th>Name</th><th>Role</th><th>Address</th><th>Gateway</th></tr>
+{% for name, item in config.interfaces.items() %}
+<tr><td>{{ name }}</td><td>{{ item.role }}</td><td>{{ item.address }}</td><td>{{ item.gateway or "" }}</td></tr>
+{% endfor %}
+</table>
+{% endblock %}

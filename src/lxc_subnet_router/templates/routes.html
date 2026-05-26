@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Routes</h1>
+<table><tr><th>Destination</th><th>Via</th><th>Interface</th><th>Raw</th></tr>
+{% for route in routes %}
+<tr><td>{{ route.destination }}</td><td>{{ route.via }}</td><td>{{ route.interface }}</td><td>{{ route.raw }}</td></tr>
+{% endfor %}
+</table>
+<h2>Configured Static Routes</h2>
+<table><tr><th>Destination</th><th>Via</th><th>Interface</th><th>Metric</th><th>Enabled</th></tr>
+{% for route in config.static_routes %}
+<tr><td>{{ route.destination }}</td><td>{{ route.via }}</td><td>{{ route.interface }}</td><td>{{ route.metric }}</td><td>{{ route.enabled }}</td></tr>
+{% endfor %}
+</table>
+{% endblock %}
